@@ -6,11 +6,15 @@ class Booking extends Model {
       {
         userId: {
           type: Sequelize.INTEGER,
-          field: "ma_nguoi_dung"
+          field: "ma_khach_hang"
         },
         code: {
           type: Sequelize.STRING,
           field: "code"
+        },
+        amount: {
+          type: Sequelize.INTEGER,
+          field: "tong_tien"
         },
         status: {
           type: Sequelize.STRING,
@@ -50,7 +54,7 @@ class Booking extends Model {
     });
 
     this.belongsTo(models.Customer, {
-      foreignKey: "ma_nguoi_dung",
+      foreignKey: "ma_khach_hang",
     });
 
     this.belongsTo(models.Driver, {

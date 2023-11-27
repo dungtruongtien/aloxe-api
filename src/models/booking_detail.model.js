@@ -16,6 +16,18 @@ class BookingDetail extends Model {
           type: Sequelize.STRING,
           field: "trang_thai"
         },
+        appliedVoucher: {
+          type: Sequelize.STRING,
+          field: "ma_giam_gia_ap_dung"
+        },
+        pickUpPoint: {
+          type: Sequelize.STRING,
+          field: "diem_don"
+        },
+        dropOffPoint: {
+          type: Sequelize.STRING,
+          field: "diem_den"
+        },
       },
       {
         sequelize,

@@ -38,7 +38,7 @@ async function startApp() {
   app.use(cors(corsOptions));
 
   app.use('/health-check', (req, res, next) => { console.log('health check') });
-  app.use('/api', apiRouteHandler);
+  app.use('/api',authenticate,  apiRouteHandler);
 
   app.use((err, req, res, next) => {
     //TODO: Handler logger for error level

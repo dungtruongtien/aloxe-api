@@ -16,10 +16,6 @@ class Customer extends Model {
           type: Sequelize.DATE,
           field: "ngay_sinh"
         },
-        address: {
-          type: Sequelize.STRING,
-          field: "dia_chi"
-        },
       },
       {
         sequelize,

@@ -20,6 +20,10 @@ class Vehicle extends Model {
           type: Sequelize.STRING,
           field: "bien_so_xe"
         },
+        image: {
+          type: Sequelize.STRING,
+          field: "hinh_anh"
+        },
       },
       {
         sequelize,
