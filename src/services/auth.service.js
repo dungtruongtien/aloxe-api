@@ -26,7 +26,7 @@ export const handleLoginSv = async ({ email, password }) => {
   const accessTokenExpiryIn = addSeconds(new Date(), ACCESS_TOKEN_EXPIRY_ON_SECOND).getTime();
   const refreshTokenExpiryIn = addSeconds(new Date(), REFRESH_TOKEN_EXPIRY_ON_SECOND).getTime();
 
-  const accessToken = jwt.sign({ customer: { id: customer.id } }, AUTH_ACCESS_SERCRET_KEY);
+  const accessToken = jwt.sign({ id, customer: { id: customer.id } }, AUTH_ACCESS_SERCRET_KEY);
   const refreshToken = jwt.sign({ userId: existsUser.id, type: 'refresh' }, AUTH_REFRESH_SERCRET_KEY, { expiresIn: REFRESH_TOKEN_EXPIRY_ON_SECOND });
 
   return { userId: existsUser.id, accessToken, accessTokenExpiryIn, refreshToken, refreshTokenExpiryIn }

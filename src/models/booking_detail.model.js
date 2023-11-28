@@ -16,6 +16,14 @@ class BookingDetail extends Model {
           type: Sequelize.STRING,
           field: "trang_thai"
         },
+        longitude: {
+          type: Sequelize.FLOAT,
+          field: "longitude"
+        },
+        latitude: {
+          type: Sequelize.FLOAT,
+          field: "latitude"
+        },
         appliedVoucher: {
           type: Sequelize.STRING,
           field: "ma_giam_gia_ap_dung"

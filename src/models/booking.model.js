@@ -8,6 +8,10 @@ class Booking extends Model {
           type: Sequelize.INTEGER,
           field: "ma_khach_hang"
         },
+        staffId: {
+          type: Sequelize.INTEGER,
+          field: "ma_nhan_vien_ho_tro"
+        },
         code: {
           type: Sequelize.STRING,
           field: "code"
@@ -59,6 +63,10 @@ class Booking extends Model {
 
     this.belongsTo(models.Driver, {
       foreignKey: "ma_tai_xe",
+    });
+
+    this.belongsTo(models.Staff, {
+      foreignKey: "ma_nhan_vien_ho_tro",
     });
   }
 }
