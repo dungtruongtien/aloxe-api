@@ -17,7 +17,6 @@ export const handleLoginSv = async ({ email, password }) => {
   const auth = await Auth.findOne({ where: { userId: existsUser.id } });
   const customer = await Customer.findOne({ where: { userId: existsUser.id } });
 
-  console.log('auth----', auth.toJSON());
   const isEqual = bcrypt.compareSync(password, auth.password);
   if (!isEqual) {
     throw new BusinessError('Username or password is wrong', 'AuthenticationFailed');
@@ -26,7 +25,7 @@ export const handleLoginSv = async ({ email, password }) => {
   const accessTokenExpiryIn = addSeconds(new Date(), ACCESS_TOKEN_EXPIRY_ON_SECOND).getTime();
   const refreshTokenExpiryIn = addSeconds(new Date(), REFRESH_TOKEN_EXPIRY_ON_SECOND).getTime();
 
-  const accessToken = jwt.sign({ id, customer: { id: customer.id } }, AUTH_ACCESS_SERCRET_KEY);
+  const accessToken = jwt.sign({ userId: existsUser.id, customer: { id: customer.id } }, AUTH_ACCESS_SERCRET_KEY);
   const refreshToken = jwt.sign({ userId: existsUser.id, type: 'refresh' }, AUTH_REFRESH_SERCRET_KEY, { expiresIn: REFRESH_TOKEN_EXPIRY_ON_SECOND });
 
   return { userId: existsUser.id, accessToken, accessTokenExpiryIn, refreshToken, refreshTokenExpiryIn }
