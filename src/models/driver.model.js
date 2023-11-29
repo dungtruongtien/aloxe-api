@@ -40,6 +40,11 @@ class Driver extends Model {
     this.hasOne(models.Vehicle, {
       foreignKey: "ma_tai_xe",
     });
+
+    this.hasMany(models.DriverLoginSession, {
+      foreignKey: "ma_tai_xe",
+      as: 'driverLoginSession'
+    });
   }
 }
 

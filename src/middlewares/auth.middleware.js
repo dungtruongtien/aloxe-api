@@ -10,7 +10,7 @@ export const authenticate = (req, res, next) => {
     next();
     return;
   }
-  
+
   const token = req.headers['x-access-token'];
   if (!token) {
     throw new AuthenticationError('Authentication failed')
@@ -24,6 +24,7 @@ export const authenticate = (req, res, next) => {
 
       throw new AuthenticationError('Authentication failed')
     }
+
     res.locals.user = { ...decoded };
     next();
     return;

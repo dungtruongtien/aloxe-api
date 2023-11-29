@@ -16,13 +16,21 @@ class BookingDetail extends Model {
           type: Sequelize.STRING,
           field: "trang_thai"
         },
-        longitude: {
-          type: Sequelize.FLOAT,
-          field: "longitude"
+        pickUplongitude: {
+          type: Sequelize.DECIMAL(11, 8),
+          field: "longitude_diem_don"
         },
-        latitude: {
-          type: Sequelize.FLOAT,
-          field: "latitude"
+        pickUplatitude: {
+          type: Sequelize.DECIMAL(10, 8),
+          field: "latitude_diem_don"
+        },
+        dropOfflongitude: {
+          type: Sequelize.DECIMAL(11, 8),
+          field: "longitude_diem_den"
+        },
+        dropOfflatitude: {
+          type: Sequelize.DECIMAL(10, 8),
+          field: "latitude_diem_den"
         },
         appliedVoucher: {
           type: Sequelize.STRING,
