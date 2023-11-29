@@ -44,6 +44,10 @@ class BookingDetail extends Model {
           type: Sequelize.STRING,
           field: "diem_den"
         },
+        vehicleType: {
+          type: Sequelize.STRING,
+          field: "loai_xe" // 4 chỗ, 5 chỗ, 7 chỗ, VIP
+        },
       },
       {
         sequelize,

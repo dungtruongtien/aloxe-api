@@ -24,6 +24,10 @@ class Driver extends Model {
           type: Sequelize.STRING,
           field: "trang_thai"
         },
+        vehicleType: {
+          type: Sequelize.STRING,
+          field: "loai_xe" // 4 chỗ, 5 chỗ, 7 chỗ, VIP
+        },
       },
       {
         sequelize,
@@ -39,6 +43,7 @@ class Driver extends Model {
   static associate(models) {
     this.hasOne(models.Vehicle, {
       foreignKey: "ma_tai_xe",
+      as: 'vehicle'
     });
 
     this.hasMany(models.DriverLoginSession, {
