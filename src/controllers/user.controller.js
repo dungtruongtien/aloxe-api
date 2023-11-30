@@ -1,5 +1,5 @@
 import { validator } from '../utils/validator';
-import { handleMeSv, handleRegisterSv } from '../services/user.service';
+import { handleDriverOnlineSv, handleMeSv, handleRegisterSv } from '../services/user.service';
 
 export const handleRegisterCtr = async (req, res, next) => {
   try {
@@ -20,8 +20,26 @@ export const handleRegisterCtr = async (req, res, next) => {
 export const handleMeCtr = async (req, res, next) => {
   try {
     // Handle business logic
-    const { user: { userId }} = res.locals;
+    const { user: { userId } } = res.locals;
     const user = await handleMeSv(userId);
+    res.status(200).json({
+      data: 'Register successfully',
+      status: 'SUCCESS',
+      data: user
+    })
+
+  } catch (err) {
+    next(err);
+  }
+}
+
+
+export const handleDriverOnlineCtr = async (req, res, next) => {
+  try {
+    // Handle business logic
+    const { user: { userId } } = res.locals;
+    const { lat, long } = req.body;
+    const user = await handleDriverOnlineSv({ userId, lat, long });
     res.status(200).json({
       data: 'Register successfully',
       status: 'SUCCESS',

@@ -22,7 +22,7 @@ class Booking extends Model {
         },
         status: {
           type: Sequelize.STRING,
-          field: "trang_thai" // đã đặt xe, đang tìm xe, đã tìm đc xe, khởi hành, đến nơi, thanh toán, huỷ chuyến
+          field: "trang_thai" // đã đặt xe, đang tìm xe, đã tìm đc xe, khởi hành, đến nơi, thanh toán, huỷ chuyến, không tìm thấy tài xế
         },
         driverId: {
           type: Sequelize.STRING,
@@ -49,7 +49,7 @@ class Booking extends Model {
   }
 
   static associate(models) {
-    this.hasMany(models.BookingDetail, {
+    this.hasOne(models.BookingDetail, {
       foreignKey: "ma_dat_xe",
       as: 'bookingDetail'
     });
@@ -60,14 +60,17 @@ class Booking extends Model {
 
     this.belongsTo(models.Customer, {
       foreignKey: "ma_khach_hang",
+      as: "customer"
     });
 
     this.belongsTo(models.Driver, {
       foreignKey: "ma_tai_xe",
+      as: "driver"
     });
 
     this.belongsTo(models.Staff, {
       foreignKey: "ma_nhan_vien_ho_tro",
+      as: "staff"
     });
   }
 }

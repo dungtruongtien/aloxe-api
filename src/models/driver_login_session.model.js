@@ -4,7 +4,7 @@ class DriverLoginSession extends Model {
   static init(sequelize) {
     super.init(
       {
-        bookingId: {
+        driverId: {
           type: Sequelize.INTEGER,
           field: "ma_tai_xe"
         },

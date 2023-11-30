@@ -28,6 +28,13 @@ class Auth extends Model {
     );
     return this;
   }
+
+  static associate(models) {
+    this.belongsTo(models.User, {
+      foreignKey: "ma_nguoi_dung",
+      as: 'account',
+    })
+  }
 }
 
 export default Auth;

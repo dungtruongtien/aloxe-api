@@ -41,12 +41,17 @@ class Driver extends Model {
   }
 
   static associate(models) {
+    this.belongsTo(models.User, {
+      foreignKey: "ma_nguoi_dung",
+      as: 'user'
+    });
+    
     this.hasOne(models.Vehicle, {
       foreignKey: "ma_tai_xe",
       as: 'vehicle'
     });
 
-    this.hasMany(models.DriverLoginSession, {
+    this.hasOne(models.DriverLoginSession, {
       foreignKey: "ma_tai_xe",
       as: 'driverLoginSession'
     });

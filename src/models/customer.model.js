@@ -27,6 +27,13 @@ class Customer extends Model {
     );
     return this;
   }
+
+  static associate(models) {
+    this.belongsTo(models.User, {
+      foreignKey: "ma_nguoi_dung",
+      as: "user",
+    });
+  }
 }
 
 export default Customer;

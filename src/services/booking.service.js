@@ -1,22 +1,159 @@
 import Booking from '../models/booking.model';
 import cron from 'node-cron';
-import BookingDetail from '../models/booking_detail.model';
 import Driver from '../models/driver.model';
+import User from '../models/user.model';
+import Staff from '../models/staff.model';
+import BookingDetail from '../models/booking_detail.model';
+import Customer from '../models/customer.model';
 import Vehicle from '../models/vehicle.model';
 import DriverLogginSession from '../models/driver_login_session.model';
 import { getDistanceFromLatLonInKm } from '../utils/distance'
+import DriverLoginSession from '../models/driver_login_session.model';
 
-export const listBookingSV = async ({ userId }) => {
-  const bookings = await Booking.findAll({ where: { userId } });
+export const listBookingSV = async ({ userId, staffId, driverId }) => {
+  const condition = {};
+  if (staffId) {
+    condition.staffId = staffId;
+  }
+  if (driverId) {
+    condition.driverId = driverId;
+  }
+  if (userId) {
+    condition.userId = userId;
+  }
+  const bookings = await Booking.findAll({
+    where: { ...condition },
+    include: [
+      {
+        model: BookingDetail,
+        as: "bookingDetail",
+      },
+      {
+        model: Customer,
+        as: "customer",
+        include: [
+          {
+            model: User,
+            as: "user"
+          }
+        ]
+      },
+      {
+        model: Driver,
+        as: "driver",
+        include: [
+          {
+            model: User,
+            as: "user"
+          }
+        ]
+      },
+      {
+        model: Staff,
+        as: "staff",
+        include: [
+          {
+            model: User,
+            as: "user",
+            attributes: ["name", "fullName"]
+          }
+        ]
+      },
+    ]
+  });
+  return bookings;
+}
+
+export const detailBookingSV = async ({ bookingId }) => {
+  const bookings = await Booking.findOne({
+    where: { id: bookingId },
+    include: [
+      {
+        model: BookingDetail,
+        as: "bookingDetail",
+      },
+      {
+        model: Customer,
+        as: "customer",
+        include: [
+          {
+            model: User,
+            as: "user"
+          }
+        ]
+      },
+      {
+        model: Driver,
+        as: "driver",
+        include: [
+          {
+            model: User,
+            as: "user"
+          }
+        ]
+      }
+    ]
+  });
+  return bookings;
+}
+
+export const updateBookingSV = async (id, updated) => {
+  const bookings = await Booking.update(
+    updated,
+    {
+      where: { id },
+    }
+  );
   return bookings;
 }
 
 export const createBookingSV = async (bookingInput) => {
+  const { customer } = bookingInput;
+  let userId = bookingInput.userId;
+
+  // Validate exist user or not
+  if (customer.phoneNumber) {
+    const user = await User.findOne({
+      where: { phoneNumber: customer.phoneNumber },
+      include: [{ model: Customer, as: 'customer' }],
+    });
+    if (!user) {
+      const userCreatedResp = await User.create(
+        {
+          name: customer.fullName,
+          fullName: customer.fullName,
+          phoneNumber: customer.phoneNumber,
+          email: customer.email,
+          customer: {
+            level: "NORMAL"
+          }
+        },
+        {
+          include: [
+            {
+              model: Customer,
+              as: 'customer'
+            }
+          ]
+        });
+      if (!userCreatedResp) {
+        throw new Error("Cannot create account")
+      }
+      userId = userCreatedResp.customer.id;
+    } else {
+      userId = user.customer.id;
+    }
+  }
+
+  const resp = {
+    driver: null,
+    price: 0,
+  }
   const { bookingDetail } = bookingInput;
   const { startTime } = bookingInput;
   const booking = await Booking.create(
     {
-      userId: bookingInput.userId,
+      userId,
       staffId: bookingInput.staffId,
       code: `BOOK_${new Date().getTime()}`,
       amount: bookingInput.amount,
@@ -46,25 +183,16 @@ export const createBookingSV = async (bookingInput) => {
 
   //  Push message to queue immediately
   if (new Date(startTime).getTime() <= new Date().getTime()) {
-    const { driver, minDistance } = await getSuitableDriver(booking.id);
-    const pricing = getPricing(minDistance);
-
-    return {
-      driver,
-      minDistance,
-      pricing,
-    }
+    return handleAssignDriverForBooking(booking);
   }
-  return {
-    driver: null,
-    price: 0,
-  };
+  return resp;
 }
+
 
 async function getAllAvailableDriver(booking) {
   return Driver.findAll({
     where: {
-      vehicleType: booking.bookingDetail[0].vehicleType,
+      vehicleType: booking.bookingDetail.vehicleType,
     },
     include: [
       {
@@ -74,7 +202,6 @@ async function getAllAvailableDriver(booking) {
           status: "ONLINE",
           drivingStatus: "WAITING_FOR_CUSTOMER",
         },
-        limit: 1
       }
     ]
   });
@@ -87,15 +214,19 @@ function getNearestDriver(booking, availableDrivers) {
   availableDrivers.forEach((driver, idx) => {
     const { bookingDetail } = booking;
     const { driverLoginSession } = driver;
+    console.log('driverLoginSession----', driverLoginSession);
+    if (!driverLoginSession || driverLoginSession.length == 0) {
+      return;
+    }
 
     const userPosition = {
-      lat: bookingDetail[0].pickUplatitude,
-      long: bookingDetail[0].pickUplongitude,
+      lat: bookingDetail.pickUplatitude,
+      long: bookingDetail.pickUplongitude,
     }
 
     const driverPosition = {
-      lat: driverLoginSession[0].currentLat,
-      long: driverLoginSession[0].currentLong,
+      lat: driverLoginSession.currentLat,
+      long: driverLoginSession.currentLong,
     }
 
     // Calculate distance from driver and user
@@ -127,14 +258,13 @@ async function getSuitableDriver(bookingId) {
       {
         model: BookingDetail,
         as: "bookingDetail",
-        limit: 1
       }
     ]
   });
   if (!booking) {
     throw new Error("Booking not found");
   }
-  
+
   const availableDrivers = await getAllAvailableDriver(booking);
 
   if (!availableDrivers || availableDrivers.length === 0) {
@@ -143,6 +273,9 @@ async function getSuitableDriver(bookingId) {
 
 
   const { driver, minDistance } = getNearestDriver(booking, availableDrivers);
+  if (!driver) {
+    return null
+  }
 
   const driverDetail = await Driver.findOne({
     where: {
@@ -166,13 +299,43 @@ function getPricing(minDistance) {
   return minDistance * 10000;
 }
 
+const handleAssignDriverForBooking = async (booking) => {
+  const { driver, minDistance } = await getSuitableDriver(booking.id);
+    if (!driver) {
+      resp.status = "DRIVER_NOT_FOUND";
+      return resp;
+    }
+    const pricing = getPricing(minDistance);
+
+    const updateBookingResp = await Booking.update({ driverId: driver.id, status: "DRIVER_FOUND" }, { where: { id: booking.id } });
+    const updateDriverResp = await DriverLoginSession.update(
+      { drivingStatus: "DRIVING" },
+      {
+        where: {
+          driverId: driver.id,
+          status: "ONLINE"
+        }
+      }
+    );
+    if (!updateBookingResp || !updateDriverResp) {
+      throw new Error("Can not assign driver");
+    }
+
+    return {
+      driver,
+      minDistance,
+      pricing,
+      status: "DRIVER_FOUND"
+    }
+}
+
 function bookingScheduler() {
   cron.schedule('* * * * *', async () => {
     console.log('running a task every minute');
     const bookingsBooked = await Booking.findAll({ where: { status: "BOOKED" } });
     if (bookingsBooked && bookingsBooked.length > 0) {
       bookingsBooked.forEach(booking => {
-        // Push to queue to process booking
+        handleAssignDriverForBooking(booking);
       });
     }
   });

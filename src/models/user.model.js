@@ -24,6 +24,10 @@ class User extends Model {
           type: Sequelize.STRING,
           field: "dia_chi"
         },
+        role: {
+          type: Sequelize.STRING,
+          field: "vai_tro"
+        },
       },
       {
         sequelize,
@@ -39,11 +43,17 @@ class User extends Model {
   static associate(models) {
     this.hasOne(models.Auth, {
       foreignKey: "ma_nguoi_dung",
-      as: 'account'
+      as: 'account',
     });
 
     this.hasOne(models.Customer, {
       foreignKey: "ma_nguoi_dung",
+      as: 'customer'
+    });
+
+    this.hasOne(models.Driver, {
+      foreignKey: "ma_nguoi_dung",
+      as: 'driver'
     });
 
     this.hasOne(models.Driver, {
@@ -52,6 +62,7 @@ class User extends Model {
 
     this.hasOne(models.Staff, {
       foreignKey: "ma_nguoi_dung",
+      as: "staff"
     });
   }
 }

@@ -7,15 +7,29 @@ import Auth from '../models/auth.model';
 import { AuthenticationError, BusinessError, NotfoundError } from '../common/customError';
 import { ACCESS_TOKEN_EXPIRY_ON_SECOND, AUTH_ACCESS_SERCRET_KEY, AUTH_REFRESH_SERCRET_KEY, REFRESH_TOKEN_EXPIRY_ON_SECOND } from '../common/constant';
 import Customer from '../models/customer.model';
+import Driver from '../models/driver.model';
+import Staff from '../models/staff.model';
 
-export const handleLoginSv = async ({ email, password }) => {
-  const existsUser = await User.findOne({ where: { email } });
+export const handleLoginSv = async ({ phoneNumber, password }) => {
+  const existsUser = await User.findOne({
+    where: { phoneNumber },
+  });
   if (!existsUser) {
     throw new NotfoundError('User not existed', 'UserNotFound');
   }
 
   const auth = await Auth.findOne({ where: { userId: existsUser.id } });
   const customer = await Customer.findOne({ where: { userId: existsUser.id } });
+  const driver = await Driver.findOne({ where: { userId: existsUser.id } });
+  const staff = await Staff.findOne({ where: { userId: existsUser.id } });
+
+  const accessTokenPayload = {
+    userId: existsUser.id,
+    customer: customer ? { id: customer.id } : {},
+    driver: driver ? { id: driver.id } : {},
+    staff: staff ? { id: staff.id } : {},
+  }
+
 
   const isEqual = bcrypt.compareSync(password, auth.password);
   if (!isEqual) {
@@ -25,10 +39,20 @@ export const handleLoginSv = async ({ email, password }) => {
   const accessTokenExpiryIn = addSeconds(new Date(), ACCESS_TOKEN_EXPIRY_ON_SECOND).getTime();
   const refreshTokenExpiryIn = addSeconds(new Date(), REFRESH_TOKEN_EXPIRY_ON_SECOND).getTime();
 
-  const accessToken = jwt.sign({ userId: existsUser.id, customer: { id: customer.id } }, AUTH_ACCESS_SERCRET_KEY);
+  const accessToken = jwt.sign(accessTokenPayload, AUTH_ACCESS_SERCRET_KEY);
   const refreshToken = jwt.sign({ userId: existsUser.id, type: 'refresh' }, AUTH_REFRESH_SERCRET_KEY, { expiresIn: REFRESH_TOKEN_EXPIRY_ON_SECOND });
 
-  return { userId: existsUser.id, accessToken, accessTokenExpiryIn, refreshToken, refreshTokenExpiryIn }
+  return { 
+    userId: existsUser.id, 
+    accessToken, 
+    accessTokenExpiryIn, 
+    refreshToken, 
+    refreshTokenExpiryIn, 
+    role: existsUser.role,
+    customerId: customer ? customer.id : 0,
+    driverId: driver ? driver.id : 0,
+    staffId: staff ? staff.id : 0,
+  }
 }
 
 export const handleLogoutSv = async (userId) => {

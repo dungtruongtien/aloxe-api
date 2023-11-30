@@ -1,11 +1,12 @@
 import express from 'express';
-import { handleMeCtr, handleRegisterCtr } from '../controllers/user.controller';
-import { authenticate } from '../middlewares/auth.middleware';
+import { handleDriverOnlineCtr, handleMeCtr, handleRegisterCtr } from '../controllers/user.controller';
 const router = express.Router();
 
 router.post('/register', handleRegisterCtr)
 
 router.get('/me', handleMeCtr)
+
+router.put('/online', handleDriverOnlineCtr)
 
 
 export default router;
