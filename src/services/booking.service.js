@@ -9,6 +9,7 @@ import Vehicle from '../models/vehicle.model';
 import DriverLogginSession from '../models/driver_login_session.model';
 import { getDistanceFromLatLonInKm } from '../utils/distance'
 import DriverLoginSession from '../models/driver_login_session.model';
+import { NotfoundError } from '../common/customError';
 
 export const listBookingSV = async ({ userId, staffId, driverId }) => {
   const condition = {};
@@ -109,10 +110,10 @@ export const updateBookingSV = async (id, updated) => {
 
 export const createBookingSV = async (bookingInput) => {
   const { customer } = bookingInput;
-  let userId = bookingInput.userId;
+  let userId = bookingInput.customerId;
 
   // Validate exist user or not
-  if (customer.phoneNumber) {
+  if (customer && customer.phoneNumber) {
     const user = await User.findOne({
       where: { phoneNumber: customer.phoneNumber },
       include: [{ model: Customer, as: 'customer' }],
@@ -183,7 +184,10 @@ export const createBookingSV = async (bookingInput) => {
 
   //  Push message to queue immediately
   if (new Date(startTime).getTime() <= new Date().getTime()) {
-    return handleAssignDriverForBooking(booking);
+    return {
+      ...await handleAssignDriverForBooking(booking),
+      booking
+    }
   }
   return resp;
 }
@@ -214,7 +218,6 @@ function getNearestDriver(booking, availableDrivers) {
   availableDrivers.forEach((driver, idx) => {
     const { bookingDetail } = booking;
     const { driverLoginSession } = driver;
-    console.log('driverLoginSession----', driverLoginSession);
     if (!driverLoginSession || driverLoginSession.length == 0) {
       return;
     }
@@ -268,7 +271,7 @@ async function getSuitableDriver(bookingId) {
   const availableDrivers = await getAllAvailableDriver(booking);
 
   if (!availableDrivers || availableDrivers.length === 0) {
-    throw new Error("Cannot find driver")
+    throw new NotfoundError("Cannot found driver");
   }
 
 

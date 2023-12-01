@@ -49,9 +49,10 @@ export const handleLoginSv = async ({ phoneNumber, password }) => {
     refreshToken, 
     refreshTokenExpiryIn, 
     role: existsUser.role,
-    customerId: customer ? customer.id : 0,
-    driverId: driver ? driver.id : 0,
-    staffId: staff ? staff.id : 0,
+    fullName: existsUser.fullName,
+    customerId: customer ? customer.id : null,
+    driverId: driver ? driver.id : null,
+    staffId: staff ? staff.id : null,
   }
 }
 

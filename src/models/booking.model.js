@@ -4,7 +4,7 @@ class Booking extends Model {
   static init(sequelize) {
     super.init(
       {
-        userId: {
+        customerId: {
           type: Sequelize.INTEGER,
           field: "ma_khach_hang"
         },

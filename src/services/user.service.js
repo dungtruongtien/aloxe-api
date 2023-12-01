@@ -51,7 +51,6 @@ export const handleRegisterSv = async ({ password, name, fullName, phoneNumber, 
 
 
 export const handleMeSv = async (userId) => {
-  console.log('userId--', userId);
   const userData = await User.findOne({
     where: { id: userId },
     attributes: ['email', 'fullName', 'name', 'id']
