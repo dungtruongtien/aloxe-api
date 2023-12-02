@@ -53,6 +53,8 @@ export const handleLoginSv = async ({ phoneNumber, password }) => {
     customerId: customer ? customer.id : null,
     driverId: driver ? driver.id : null,
     staffId: staff ? staff.id : null,
+    phoneNumber,
+    email: existsUser.email
   }
 }
 

@@ -119,10 +119,11 @@ export const updateBookingSV = async (id, updated) => {
 export const createBookingSV = async (bookingInput) => {
   const { customer } = bookingInput;
   let userId = bookingInput.customerId;
+  let user = null;
 
   // Validate exist user or not
   if (customer && customer.phoneNumber) {
-    const user = await User.findOne({
+    user = await User.findOne({
       where: { phoneNumber: customer.phoneNumber },
       include: [{ model: Customer, as: 'customer' }],
     });
@@ -149,6 +150,7 @@ export const createBookingSV = async (bookingInput) => {
         throw new Error("Cannot create account")
       }
       userId = userCreatedResp.customer.id;
+      user = userCreatedResp;
     } else {
       userId = user.customer.id;
     }
@@ -157,6 +159,7 @@ export const createBookingSV = async (bookingInput) => {
   const resp = {
     driver: null,
     price: 0,
+    user,
   }
   const { bookingDetail } = bookingInput;
   const { startTime } = bookingInput;
@@ -194,7 +197,8 @@ export const createBookingSV = async (bookingInput) => {
   if (new Date(startTime).getTime() <= new Date().getTime()) {
     return {
       ...await handleAssignDriverForBooking(booking),
-      booking
+      booking,
+      user
     }
   }
   return resp;
