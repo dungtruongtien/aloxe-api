@@ -118,7 +118,7 @@ export const updateBookingSV = async (id, updated) => {
 
 export const createBookingSV = async (bookingInput) => {
   const { customer } = bookingInput;
-  let userId = bookingInput.customerId;
+  let customerId = bookingInput.customerId;
   let user = null;
 
   // Validate exist user or not
@@ -149,10 +149,10 @@ export const createBookingSV = async (bookingInput) => {
       if (!userCreatedResp) {
         throw new Error("Cannot create account")
       }
-      userId = userCreatedResp.customer.id;
+      customerId = userCreatedResp.customer.id;
       user = userCreatedResp;
     } else {
-      userId = user.customer.id;
+      customerId = user.customer.id;
     }
   }
 
@@ -165,7 +165,7 @@ export const createBookingSV = async (bookingInput) => {
   const { startTime } = bookingInput;
   const booking = await Booking.create(
     {
-      userId,
+      customerId,
       staffId: bookingInput.staffId,
       code: `BOOK_${new Date().getTime()}`,
       amount: bookingInput.amount,
