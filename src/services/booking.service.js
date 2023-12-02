@@ -46,6 +46,10 @@ export const listBookingSV = async ({ userId, staffId, driverId }) => {
           {
             model: User,
             as: "user"
+          },
+          {
+            model: Vehicle,
+            as: "vehicle"
           }
         ]
       },
@@ -90,6 +94,10 @@ export const detailBookingSV = async ({ bookingId }) => {
           {
             model: User,
             as: "user"
+          },
+          {
+            model: Vehicle,
+            as: "vehicle"
           }
         ]
       }
