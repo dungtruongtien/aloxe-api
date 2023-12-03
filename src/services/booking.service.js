@@ -11,9 +11,9 @@ import { getDistanceFromLatLonInKm } from '../utils/distance'
 import DriverLoginSession from '../models/driver_login_session.model';
 import { NotfoundError } from '../common/customError';
 import { broadcastPrivateMessage } from '../client/socket';
-import { formatInTimeZone, zonedTimeToUtc } from 'date-fns-tz';
+import { zonedTimeToUtc } from 'date-fns-tz';
 
-export const listBookingSV = async ({ customerId, staffId, driverId }) => {
+export const listBookingSV = async ({ customerId, staffId, driverId, status }) => {
   const condition = {};
   if (staffId) {
     condition.staffId = staffId;
@@ -23,6 +23,9 @@ export const listBookingSV = async ({ customerId, staffId, driverId }) => {
   }
   if (customerId) {
     condition.customerId = customerId;
+  }
+  if (status) {
+    condition.status = status;
   }
   const bookings = await Booking.findAll({
     where: { ...condition },
