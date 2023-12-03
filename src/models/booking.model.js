@@ -1,5 +1,15 @@
 import Sequelize, { Model } from "sequelize";
-
+/* 
+BookingStatus.BOOKED,
+BookingStatus.WAITING_FOR_DRIVER,
+BookingStatus.DRIVER_FOUND,
+BookingStatus.DRIVER_CAME,
+BookingStatus.ONBOARDING,
+BookingStatus.DRIVER_NOT_FOUND,
+BookingStatus.ARRIVED,
+BookingStatus.PAID,
+BookingStatus.CANCELLED,
+*/
 class Booking extends Model {
   static init(sequelize) {
     super.init(

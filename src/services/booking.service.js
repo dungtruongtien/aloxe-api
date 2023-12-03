@@ -10,8 +10,10 @@ import DriverLogginSession from '../models/driver_login_session.model';
 import { getDistanceFromLatLonInKm } from '../utils/distance'
 import DriverLoginSession from '../models/driver_login_session.model';
 import { NotfoundError } from '../common/customError';
+import { broadcastPrivateMessage } from '../client/socket';
+import { formatInTimeZone, zonedTimeToUtc } from 'date-fns-tz';
 
-export const listBookingSV = async ({ userId, staffId, driverId }) => {
+export const listBookingSV = async ({ customerId, staffId, driverId }) => {
   const condition = {};
   if (staffId) {
     condition.staffId = staffId;
@@ -19,8 +21,8 @@ export const listBookingSV = async ({ userId, staffId, driverId }) => {
   if (driverId) {
     condition.driverId = driverId;
   }
-  if (userId) {
-    condition.userId = userId;
+  if (customerId) {
+    condition.customerId = customerId;
   }
   const bookings = await Booking.findAll({
     where: { ...condition },
@@ -107,13 +109,13 @@ export const detailBookingSV = async ({ bookingId }) => {
 }
 
 export const updateBookingSV = async (id, updated) => {
-  const bookings = await Booking.update(
+  const booking = await Booking.update(
     updated,
     {
       where: { id },
     }
   );
-  return bookings;
+  return booking;
 }
 
 export const createBookingSV = async (bookingInput) => {
@@ -123,66 +125,35 @@ export const createBookingSV = async (bookingInput) => {
 
   // Validate exist user or not
   if (customer && customer.phoneNumber) {
-    user = await User.findOne({
-      where: { phoneNumber: customer.phoneNumber },
-      include: [{ model: Customer, as: 'customer' }],
-    });
-    if (!user) {
-      const userCreatedResp = await User.create(
-        {
-          name: customer.fullName,
-          fullName: customer.fullName,
-          phoneNumber: customer.phoneNumber,
-          email: customer.email,
-          customer: {
-            level: "NORMAL"
-          }
-        },
-        {
-          include: [
-            {
-              model: Customer,
-              as: 'customer'
-            }
-          ]
-        });
-      if (!userCreatedResp) {
-        throw new Error("Cannot create account")
-      }
-      customerId = userCreatedResp.customer.id;
-      user = userCreatedResp;
-    } else {
-      customerId = user.customer.id;
+    const customerInfo = __getCustomerInfo(customer);
+    customerId = customerInfo.id;
+    user = customerInfo;
+  }
+
+  let resp = { driver: null, price: 0, user, };
+
+  const { bookingDetail } = bookingInput;
+  const { startTime } = bookingInput;
+  const bookingDto = {
+    customerId,
+    staffId: bookingInput.staffId,
+    code: `BOOK_${new Date().getTime()}`,
+    status: "BOOKED",
+    startTime: bookingInput.startTime,
+    endTime: bookingInput.endTime,
+    bookingDetail: {
+      vehicleType: bookingDetail.vehicleType,
+      pickUplongitude: bookingDetail.pickUplongitude,
+      pickUplatitude: bookingDetail.pickUplatitude,
+      dropOfflongitude: bookingDetail.dropOfflongitude,
+      dropOfflatitude: bookingDetail.dropOfflatitude,
+      appliedVoucher: bookingDetail.appliedVoucher,
+      pickUpPoint: bookingDetail.pickUpPoint,
+      dropOffPoint: bookingDetail.dropOffPoint,
     }
   }
 
-  const resp = {
-    driver: null,
-    price: 0,
-    user,
-  }
-  const { bookingDetail } = bookingInput;
-  const { startTime } = bookingInput;
-  const booking = await Booking.create(
-    {
-      customerId,
-      staffId: bookingInput.staffId,
-      code: `BOOK_${new Date().getTime()}`,
-      amount: bookingInput.amount,
-      status: "WAITING_FOR_DRIVER",
-      startTime: bookingInput.startTime,
-      endTime: bookingInput.endTime,
-      bookingDetail: {
-        vehicleType: bookingDetail.vehicleType,
-        pickUplongitude: bookingDetail.pickUplongitude,
-        pickUplatitude: bookingDetail.pickUplatitude,
-        dropOfflongitude: bookingDetail.dropOfflongitude,
-        dropOfflatitude: bookingDetail.dropOfflatitude,
-        appliedVoucher: bookingDetail.appliedVoucher,
-        pickUpPoint: bookingDetail.pickUpPoint,
-        dropOffPoint: bookingDetail.dropOffPoint,
-      }
-    },
+  const booking = await Booking.create(bookingDto,
     {
       include: [
         {
@@ -194,36 +165,65 @@ export const createBookingSV = async (bookingInput) => {
   );
 
   //  Push message to queue immediately
-  if (new Date(startTime).getTime() <= new Date().getTime()) {
-    return {
-      ...await handleAssignDriverForBooking(booking),
-      booking,
+  const nowInVN = zonedTimeToUtc(new Date(), "Asia/Ho_Chi_Minh");
+  const startTimeInVN = zonedTimeToUtc(new Date(startTime), "Asia/Ho_Chi_Minh");
+  if (startTimeInVN.getTime() <= nowInVN.getTime()) {
+    const driverInfo = await __handleAssignDriverForBooking(booking);
+    resp = {
+      ...driverInfo,
+      booking: { ...bookingDto, status: "DRIVER_FOUND" },
       user
     }
+
+    // Handle send message to socket channels
+    broadcastPrivateMessage(booking.id, "Hello");
+    broadcastPrivateMessage(driverInfo.id, JSON.stringify({ message: "Order is assigned to you" }));
   }
+
   return resp;
 }
 
+export const bookingDriverAction = (bookingId, type) => {
 
-async function getAllAvailableDriver(booking) {
-  return Driver.findAll({
-    where: {
-      vehicleType: booking.bookingDetail.vehicleType,
-    },
-    include: [
-      {
-        model: DriverLogginSession,
-        as: 'driverLoginSession',
-        where: {
-          status: "ONLINE",
-          drivingStatus: "WAITING_FOR_CUSTOMER",
-        },
-      }
-    ]
-  });
 }
 
-function getNearestDriver(booking, availableDrivers) {
+async function __getCustomerInfo(customer) {
+  const user = await User.findOne({
+    where: { phoneNumber: customer.phoneNumber },
+    include: [{ model: Customer, as: 'customer' }],
+  });
+  if (!user) {
+    const userCreatedResp = await User.create(
+      {
+        name: customer.fullName,
+        fullName: customer.fullName,
+        phoneNumber: customer.phoneNumber,
+        email: customer.email,
+        customer: {
+          level: "NORMAL"
+        }
+      },
+      {
+        include: [
+          {
+            model: Customer,
+            as: 'customer'
+          }
+        ]
+      });
+    if (!userCreatedResp) {
+      throw new Error("Cannot create account")
+    }
+    return userCreatedResp;
+    // customerId = userCreatedResp.customer.id;
+    // user = userCreatedResp;
+    // return user;
+  }
+  return user;
+  // customerId = user.customer.id;
+}
+
+function __getNearestDriver(booking, availableDrivers) {
   let suitableDriverIdx = -1;
   let minDistance = Number.MAX_SAFE_INTEGER;
 
@@ -257,7 +257,7 @@ function getNearestDriver(booking, availableDrivers) {
   }
 
   if (suitableDriverIdx === -1) {
-    return null;
+    return { driver: null };
   }
 
   return {
@@ -266,7 +266,7 @@ function getNearestDriver(booking, availableDrivers) {
   };
 }
 
-async function getSuitableDriver(bookingId) {
+async function __getSuitableDriver(bookingId) {
   const booking = await Booking.findOne({
     where: { id: bookingId },
     include: [
@@ -280,23 +280,19 @@ async function getSuitableDriver(bookingId) {
     throw new Error("Booking not found");
   }
 
-  const availableDrivers = await getAllAvailableDriver(booking);
-
-  if (!availableDrivers || availableDrivers.length === 0) {
-    throw new NotfoundError("Cannot found driver");
-  }
-
-
-  const { driver, minDistance } = getNearestDriver(booking, availableDrivers);
-  if (!driver) {
-    return null
-  }
-
-  const driverDetail = await Driver.findOne({
+  const availableDrivers = await Driver.findAll({
     where: {
-      id: driver.id
+      vehicleType: booking.bookingDetail.vehicleType,
     },
     include: [
+      {
+        model: DriverLogginSession,
+        as: 'driverLoginSession',
+        where: {
+          status: "ONLINE",
+          drivingStatus: "WAITING_FOR_CUSTOMER",
+        },
+      },
       {
         model: Vehicle,
         as: 'vehicle',
@@ -304,44 +300,65 @@ async function getSuitableDriver(bookingId) {
     ]
   });
 
+  if (!availableDrivers || availableDrivers.length === 0) {
+    return { driver: null }
+  }
+
+
+  const { driver, minDistance } = __getNearestDriver(booking, availableDrivers);
+  if (!driver) {
+    return null
+  }
+
   return {
-    driver: driverDetail,
+    driver,
     minDistance
   };
 }
 
-function getPricing(minDistance) {
-  return minDistance * 10000;
-}
-
-const handleAssignDriverForBooking = async (booking) => {
-  const { driver, minDistance } = await getSuitableDriver(booking.id);
-    if (!driver) {
-      resp.status = "DRIVER_NOT_FOUND";
-      return resp;
-    }
-    const pricing = getPricing(minDistance);
-
-    const updateBookingResp = await Booking.update({ driverId: driver.id, status: "DRIVER_FOUND" }, { where: { id: booking.id } });
-    const updateDriverResp = await DriverLoginSession.update(
-      { drivingStatus: "DRIVING" },
-      {
-        where: {
-          driverId: driver.id,
-          status: "ONLINE"
-        }
-      }
+const __handleAssignDriverForBooking = async (booking) => {
+  const { driver, minDistance } = await __getSuitableDriver(booking.id);
+  
+  if (!driver) {
+    await Booking.update(
+      { status: "DRIVER_NOT_FOUND", },
+      { where: { id: booking.id } }
     );
-    if (!updateBookingResp || !updateDriverResp) {
-      throw new Error("Can not assign driver");
-    }
+    throw new NotfoundError("Cannot found driver");
+  }
 
-    return {
-      driver,
-      minDistance,
-      pricing,
-      status: "DRIVER_FOUND"
+  const pricing = minDistance * 10000; // 10000 each km
+
+  const updateBookingResp = await Booking.update(
+    {
+      driverId: driver.id, status: "DRIVER_FOUND",
+      amount: pricing,
+    },
+    {
+      where: { id: booking.id }
     }
+  );
+
+  const updateDriverResp = await DriverLoginSession.update(
+    { drivingStatus: "DRIVING" },
+    {
+      where: {
+        driverId: driver.id,
+        status: "ONLINE"
+      }
+    }
+  );
+
+  if (!updateBookingResp || !updateDriverResp) {
+    throw new Error("Can not assign driver");
+  }
+
+  return {
+    driver,
+    minDistance,
+    pricing,
+    status: "DRIVER_FOUND"
+  }
 }
 
 function bookingScheduler() {
@@ -350,7 +367,7 @@ function bookingScheduler() {
     const bookingsBooked = await Booking.findAll({ where: { status: "BOOKED" } });
     if (bookingsBooked && bookingsBooked.length > 0) {
       bookingsBooked.forEach(booking => {
-        handleAssignDriverForBooking(booking);
+        __handleAssignDriverForBooking(booking);
       });
     }
   });

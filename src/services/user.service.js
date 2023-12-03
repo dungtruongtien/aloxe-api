@@ -6,6 +6,7 @@ import Customer from '../models/customer.model';
 import { BusinessError, NotfoundError } from '../common/customError';
 import { format } from 'date-fns';
 import DriverLoginSession from '../models/driver_login_session.model';
+import { broadcastPrivateMessage } from '../client/socket';
 
 export const handleRegisterSv = async ({ password, name, fullName, phoneNumber, email, address, username, dob, role }) => {
   const existsEmail = await User.findOne({ where: { phoneNumber } });
@@ -53,7 +54,19 @@ export const handleRegisterSv = async ({ password, name, fullName, phoneNumber, 
 export const handleMeSv = async (userId) => {
   const userData = await User.findOne({
     where: { id: userId },
-    attributes: ['email', 'fullName', 'name', 'id']
+    attributes: ['email', 'fullName', 'name', 'id'],
+    include: [
+      {
+        model: Driver,
+        as: "driver",
+        include: [
+          {
+            model: DriverLoginSession,
+            as: "driverLoginSession"
+          }
+        ]
+      }
+    ]
   });
   if (!userData) {
     throw new NotfoundError('User not existed', 'UserNotFound');
@@ -62,31 +75,30 @@ export const handleMeSv = async (userId) => {
   return userData;
 }
 
-export const handleDriverOnlineSv = async ({userId, lat, long}) => {
-  const userData = await User.findOne({
-    where: { id: userId },
-    include: [
-      {
-        model: Driver,
-        as: "driver",
-      }
-    ]
+export const handleDriverOnlineSv = async ({ driverId, lat, long, type }) => {
+  if (type === "OFFLINE") {
+    return DriverLoginSession.destroy({ where: { driverId } });
+  }
+  const driverData = await Driver.findOne({
+    where: { id: driverId },
   });
-  if (!userData) {
+  if (!driverData) {
     throw new BusinessError('User not existed', 'UserNotFound');
   }
 
-  const updated = await DriverLoginSession.create({
-    driverId: userData.driver.id,
+  const created = await DriverLoginSession.create({
+    driverId: driverData.id,
     currentLat: lat,
     currentLong: long,
     status: "ONLINE",
     drivingStatus: "WAITING_FOR_CUSTOMER",
   });
 
-  if(!updated) {
+  if (!created) {
     throw new Error("Cannot switch user to online status");
   }
 
-  return updated;
+  broadcastPrivateMessage(driverData.id, "Hello");
+
+  return created;
 }

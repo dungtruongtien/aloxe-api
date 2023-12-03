@@ -7,9 +7,9 @@ import { authenticate } from '../middlewares/auth.middleware';
 
 const router = express.Router();
 
-router.use('/user/v1', authenticate, userRouterHandler);
-router.use('/auth/v1', authRouterHandler);
-router.use('/booking/v1', bookingRouterHandler);
+router.use('/users', authenticate, userRouterHandler);
+router.use('/auth', authRouterHandler);
+router.use('/bookings', bookingRouterHandler);
 
 
 

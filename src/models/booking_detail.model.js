@@ -6,15 +6,12 @@ class BookingDetail extends Model {
       {
         bookingId: {
           type: Sequelize.INTEGER,
-          field: "ma_dat_xe"
+          field: "ma_dat_xe",
+          unique: true,
         },
         description: {
           type: Sequelize.TEXT,
           field: "mo_ta"
-        },
-        status: {
-          type: Sequelize.STRING,
-          field: "trang_thai"
         },
         pickUplongitude: {
           type: Sequelize.DECIMAL(11, 8),

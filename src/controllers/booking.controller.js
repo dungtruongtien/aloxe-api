@@ -3,8 +3,8 @@ import { createBookingSV, detailBookingSV, listBookingSV, updateBookingSV } from
 export const listBookingCtr = async (req, res, next) => {
   try {
     // Handle business logic
-    const { staffId, userId, driverId } = req.query;
-    const bookings = await listBookingSV({ userId, staffId, driverId });
+    const { staffId, customerId, driverId } = req.query;
+    const bookings = await listBookingSV({ customerId, staffId, driverId });
     res.status(201).json({
       status: 'SUCCESS',
       data: bookings

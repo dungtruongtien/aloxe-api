@@ -6,7 +6,8 @@ class DriverLoginSession extends Model {
       {
         driverId: {
           type: Sequelize.INTEGER,
-          field: "ma_tai_xe"
+          field: "ma_tai_xe",
+          unique: true,
         },
         currentLat: {
           type: Sequelize.DECIMAL(10,8),

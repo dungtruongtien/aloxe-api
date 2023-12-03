@@ -1,15 +1,14 @@
 import express from 'express';
 import dotenv from 'dotenv';
 import logger from 'morgan';
+import { createServer } from 'node:http';
 import cookieParser from 'cookie-parser';
 import cors from 'cors';
 
 import config from './config/init';
 import sequelizeService from './client/db';
 import apiRouteHandler from './routes/api.route';
-import { initMessageQueueConnection } from './client/amqp';
-import { initMemcache } from './client/redis';
-import { authenticate } from './middlewares/auth.middleware';
+import { initSocketConnection } from './client/socket';
 
 dotenv.config();
 
@@ -21,9 +20,8 @@ async function bootstrap() {
 }
 
 async function startApp() {
-
   const app = express();
-  await bootstrap(app);
+  await bootstrap();
 
   const corsOptions = {
     origin: config.interfaceEndpoint,
@@ -35,7 +33,7 @@ async function startApp() {
   app.use(express.urlencoded({ extended: true }));
 
 
-  app.use(cors(corsOptions));
+  app.use(cors());
 
   app.use('/health-check', (req, res, next) => { console.log('health check') });
   app.use('/api', apiRouteHandler);
@@ -53,11 +51,17 @@ async function startApp() {
     }
     res.status(err.status).json({
       name: err.name,
-      message: err.message
+      message: err.message,
+      data: null,
+      status: err.name,
     })
   })
 
-  app.listen(config.port, () => {
+  const server = createServer(app);
+  initSocketConnection(server);
+
+
+  server.listen(config.port, () => {
     console.log(`⚡️ [server]: Server is running at https://localhost:${config.port}`);
   });
 
