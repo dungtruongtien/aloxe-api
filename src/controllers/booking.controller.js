@@ -1,4 +1,4 @@
-import { createBookingSV, detailBookingSV, listBookingSV, updateBookingSV } from '../services/booking.service';
+import { bookingDriverActionSV, createBookingSV, detailBookingSV, listBookingSV, updateBookingSV } from '../services/booking.service';
 
 export const listBookingCtr = async (req, res, next) => {
   try {
@@ -51,6 +51,24 @@ export const updateBookingCtr = async (req, res, next) => {
     // Handle business logic
     const { id } = req.params;
     const booking = await updateBookingSV(id, req.body);
+    res.status(201).json({
+      status: 'SUCCESS',
+      data: booking
+    })
+
+  } catch (err) {
+    next(err);
+  }
+}
+
+
+export const bookingDriverActionCtr = async (req, res, next) => {
+  try {
+    // Handle business logic
+    const { bookingId, actionType, assignedDriverId } = req.body;
+    console.log('res.locals----', res.locals);
+    const { user: { driver: { id } } } = res.locals;
+    const booking = await bookingDriverActionSV(id, bookingId, actionType, assignedDriverId);
     res.status(201).json({
       status: 'SUCCESS',
       data: booking

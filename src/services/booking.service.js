@@ -12,6 +12,7 @@ import DriverLoginSession from '../models/driver_login_session.model';
 import { NotfoundError } from '../common/customError';
 import { broadcastPrivateMessage } from '../client/socket';
 import { zonedTimeToUtc } from 'date-fns-tz';
+import Auth from '../models/auth.model';
 
 export const listBookingSV = async ({ customerId, staffId, driverId, status }) => {
   const condition = {};
@@ -28,6 +29,9 @@ export const listBookingSV = async ({ customerId, staffId, driverId, status }) =
     condition.status = status;
   }
   const bookings = await Booking.findAll({
+    order: [
+      ["thoi_gian_tao", "DESC"]
+    ],
     where: { ...condition },
     include: [
       {
@@ -128,14 +132,37 @@ export const createBookingSV = async (bookingInput) => {
 
   // Validate exist user or not
   if (customer && customer.phoneNumber) {
-    const customerInfo = __getCustomerInfo(customer);
-    customerId = customerInfo.id;
-    user = customerInfo;
+    const userInfo = await __getUserInfo(customer);
+    console.log('userInfo-----', userInfo);
+    customerId = userInfo.customer.id;
+    user = userInfo;
+  } else {
+
   }
 
   let resp = { driver: null, price: 0, user, };
 
   const { bookingDetail } = bookingInput;
+
+
+  const pickPosition = {
+    lat: bookingDetail.pickUpLatitude,
+    long: bookingDetail.pickUpLongitude,
+  }
+
+  const dropoffPosition = {
+    lat: bookingDetail.dropOffLatitude,
+    long: bookingDetail.dropOffLongitude,
+  }
+
+  const distance = getDistanceFromLatLonInKm(pickPosition, dropoffPosition);
+  const pricing = distance * 10000; // 10000 each km
+
+  console.log('pricing----', pricing);
+  resp.pricing = pricing;
+
+
+  console.log('bookingInput-----', bookingInput);
   const { startTime } = bookingInput;
   const bookingDto = {
     customerId,
@@ -144,12 +171,13 @@ export const createBookingSV = async (bookingInput) => {
     status: "BOOKED",
     startTime: bookingInput.startTime,
     endTime: bookingInput.endTime,
+    amount: pricing,
     bookingDetail: {
       vehicleType: bookingDetail.vehicleType,
-      pickUplongitude: bookingDetail.pickUplongitude,
-      pickUplatitude: bookingDetail.pickUplatitude,
-      dropOfflongitude: bookingDetail.dropOfflongitude,
-      dropOfflatitude: bookingDetail.dropOfflatitude,
+      pickUpLongitude: bookingDetail.pickUpLongitude,
+      pickUpLatitude: bookingDetail.pickUpLatitude,
+      dropOffLongitude: bookingDetail.dropOffLongitude,
+      dropOffLatitude: bookingDetail.dropOffLatitude,
       appliedVoucher: bookingDetail.appliedVoucher,
       pickUpPoint: bookingDetail.pickUpPoint,
       dropOffPoint: bookingDetail.dropOffPoint,
@@ -172,30 +200,123 @@ export const createBookingSV = async (bookingInput) => {
   const startTimeInVN = zonedTimeToUtc(new Date(startTime), "Asia/Ho_Chi_Minh");
   if (startTimeInVN.getTime() <= nowInVN.getTime()) {
     const driverInfo = await __handleAssignDriverForBooking(booking);
+    const customer = await Customer.findOne({
+      where: { id: customerId },
+      include: [
+        {
+          model: User,
+          as: 'user',
+        }
+      ]
+    });
+    console.log('customer------', customer.toJSON());
     resp = {
       ...driverInfo,
-      booking: { ...bookingDto, status: "DRIVER_FOUND" },
+      booking: { ...bookingDto, id: booking.id, status: "DRIVER_FOUND", driver: driverInfo.driver },
       user
     }
 
     // Handle send message to socket channels
+    console.log('driverInfo.id----', driverInfo.driver.id);
+    console.log('JSON.stringify(------', JSON.stringify({
+      message: "Bạn có 1 đơn đặt xe",
+      booking: { ...bookingDto, status: "DRIVER_FOUND" },
+      customer: {
+        fullName: customer.user.fullName,
+        phoneNumber: customer.user.phoneNumber,
+        avatar: customer.user.avatar,
+      }
+    }))
     broadcastPrivateMessage(booking.id, "Hello");
-    broadcastPrivateMessage(driverInfo.id, JSON.stringify({ message: "Order is assigned to you" }));
+    broadcastPrivateMessage(driverInfo.driver.id, JSON.stringify({
+      message: "Bạn có 1 đơn đặt xe",
+      booking: { ...bookingDto, status: "DRIVER_FOUND" },
+      customer: {
+        fullName: customer.user.fullName,
+        phoneNumber: customer.user.phoneNumber,
+        avatar: customer.user.avatar,
+      }
+    }));
+    console.log('After broadcasting-------');
   }
 
   return resp;
 }
 
-export const bookingDriverAction = (bookingId, type) => {
+export const bookingDriverActionSV = async (driverId, bookingId, actionType, assignedDriverId) => {
+  console.log('actionType----', actionType);
+  console.log('bookingId-----', bookingId);
+  console.log('assignedDriverId----', assignedDriverId);
+  let bookingResp = null;
+  switch (actionType) {
+    case "CONFIRMED":
+      bookingResp = await Booking.update(
+        {
+          status: "DRIVER_CONFIRMED"
+        },
+        {
+          where: { id: bookingId }
+        },
+      )
+
+      broadcastPrivateMessage(bookingId, JSON.stringify({ message: "Driver is confirmed and arriving to your pick up location." }));
+      return bookingResp;
+    case "CANCELLED":
+      bookingResp = await Booking.update(
+        {
+          status: "CANCELLED"
+        },
+        {
+          where: { id: bookingId }
+        },
+      );
+      await DriverLogginSession.update(
+        {
+          drivingStatus: "WAITING_FOR_CUSTOMER"
+        },
+        {
+          where: { driverId }
+        },
+      );
+      broadcastPrivateMessage(bookingId, JSON.stringify({ message: "Driver is cancelled your booking, please retry to book a new car." }));
+      return bookingResp;
+    case "USER_CANCELLED":
+      console.log('assignedDriverId---', assignedDriverId);
+      bookingResp = await Booking.update(
+        {
+          status: "CANCELLED"
+        },
+        {
+          where: { id: bookingId }
+        },
+      );
+      if (assignedDriverId) {
+        await DriverLogginSession.update(
+          {
+            drivingStatus: "WAITING_FOR_CUSTOMER"
+          },
+          {
+            where: { driverId: assignedDriverId }
+          },
+        );
+        broadcastPrivateMessage(assignedDriverId, JSON.stringify({ message: "Customer cancelled your booking." }));
+      }
+      return bookingResp;
+    default:
+      break;
+  }
 
 }
 
-async function __getCustomerInfo(customer) {
+async function __getUserInfo(customer) {
   const user = await User.findOne({
     where: { phoneNumber: customer.phoneNumber },
     include: [{ model: Customer, as: 'customer' }],
   });
   if (!user) {
+    var salt = bcrypt.genSaltSync(10);
+    const hashedPassword = bcrypt.hashSync("abc123", salt);
+
     const userCreatedResp = await User.create(
       {
         name: customer.fullName,
@@ -204,16 +325,25 @@ async function __getCustomerInfo(customer) {
         email: customer.email,
         customer: {
           level: "NORMAL"
-        }
+        },
+        account: {
+          username,
+          password: hashedPassword
+        },
       },
       {
         include: [
           {
             model: Customer,
             as: 'customer'
+          },
+          {
+            model: Auth,
+            as: 'auth'
           }
         ]
       });
+    console.log('userCreatedResp----', userCreatedResp);
     if (!userCreatedResp) {
       throw new Error("Cannot create account")
     }
@@ -238,8 +368,8 @@ function __getNearestDriver(booking, availableDrivers) {
     }
 
     const userPosition = {
-      lat: bookingDetail.pickUplatitude,
-      long: bookingDetail.pickUplongitude,
+      lat: bookingDetail.pickUpLatitude,
+      long: bookingDetail.pickUpLongitude,
     }
 
     const driverPosition = {
@@ -248,7 +378,8 @@ function __getNearestDriver(booking, availableDrivers) {
     }
 
     // Calculate distance from driver and user
-    const distanceFromUserToDriver = getDistanceFromLatLonInKm(userPosition, driverPosition)
+    const distanceFromUserToDriver = getDistanceFromLatLonInKm(userPosition, driverPosition);
+    console.log('distanceFromUserToDriver----', distanceFromUserToDriver);
     if (distanceFromUserToDriver < minDistance) {
       minDistance = distanceFromUserToDriver;
       suitableDriverIdx = idx;
@@ -321,7 +452,22 @@ async function __getSuitableDriver(bookingId) {
 
 const __handleAssignDriverForBooking = async (booking) => {
   const { driver, minDistance } = await __getSuitableDriver(booking.id);
-  
+
+  const { bookingDetail } = booking;
+  const pickPosition = {
+    lat: bookingDetail.pickUpLatitude,
+    long: bookingDetail.pickUpLongitude,
+  }
+
+  const dropoffPosition = {
+    lat: bookingDetail.dropOffLatitude,
+    long: bookingDetail.dropOffLongitude,
+  }
+
+  const distance = getDistanceFromLatLonInKm(pickPosition, dropoffPosition);
+  const pricing = distance * 10000; // 10000 each km
+
+
   if (!driver) {
     await Booking.update(
       { status: "DRIVER_NOT_FOUND", },
@@ -329,8 +475,6 @@ const __handleAssignDriverForBooking = async (booking) => {
     );
     throw new NotfoundError("Cannot found driver");
   }
-
-  const pricing = minDistance * 10000; // 10000 each km
 
   const updateBookingResp = await Booking.update(
     {
@@ -355,6 +499,7 @@ const __handleAssignDriverForBooking = async (booking) => {
   if (!updateBookingResp || !updateDriverResp) {
     throw new Error("Can not assign driver");
   }
+
 
   return {
     driver,

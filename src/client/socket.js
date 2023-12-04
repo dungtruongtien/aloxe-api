@@ -8,7 +8,8 @@ const PRIVATE_MESSAGE_ID = {};
 export const initSocketConnection = (server) => {
   const io = new Server(server, {
     path: '/booking-event',
-    cors: {}
+    cors: {},
+    transports: ["polling", "websocket"]
   });
   GLOBAL_SOCKET_IO = io;
   GLOBAL_SOCKET = io;

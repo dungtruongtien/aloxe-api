@@ -13,19 +13,19 @@ class BookingDetail extends Model {
           type: Sequelize.TEXT,
           field: "mo_ta"
         },
-        pickUplongitude: {
+        pickUpLongitude: {
           type: Sequelize.DECIMAL(11, 8),
           field: "longitude_diem_don"
         },
-        pickUplatitude: {
+        pickUpLatitude: {
           type: Sequelize.DECIMAL(10, 8),
           field: "latitude_diem_don"
         },
-        dropOfflongitude: {
+        dropOffLongitude: {
           type: Sequelize.DECIMAL(11, 8),
           field: "longitude_diem_den"
         },
-        dropOfflatitude: {
+        dropOffLatitude: {
           type: Sequelize.DECIMAL(10, 8),
           field: "latitude_diem_den"
         },

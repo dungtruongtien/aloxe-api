@@ -24,6 +24,10 @@ class User extends Model {
           type: Sequelize.STRING,
           field: "dia_chi"
         },
+        avatar: {
+          type: Sequelize.STRING,
+          field: "anh_dai_dien"
+        },
         role: {
           type: Sequelize.STRING,
           field: "vai_tro"
