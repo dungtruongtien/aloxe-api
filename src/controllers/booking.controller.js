@@ -66,7 +66,6 @@ export const bookingDriverActionCtr = async (req, res, next) => {
   try {
     // Handle business logic
     const { bookingId, actionType, assignedDriverId } = req.body;
-    console.log('res.locals----', res.locals);
     const { user: { driver: { id } } } = res.locals;
     const booking = await bookingDriverActionSV(id, bookingId, actionType, assignedDriverId);
     res.status(201).json({

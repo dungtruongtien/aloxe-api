@@ -1,6 +1,4 @@
-import { validator } from '../utils/validator';
 import { handleLoginSv, handleLogoutSv, handleRefreshTokenSv } from '../services/auth.service';
-import { ValidationError } from '../common/customError';
 
 export const handleLoginCtr = async (req, res, next) => {
   try {

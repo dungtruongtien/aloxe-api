@@ -15,8 +15,6 @@ dotenv.config();
 async function bootstrap() {
   // Init db connection
   await sequelizeService.init();
-  // await initMessageQueueConnection();
-  // await initMemcache();
 }
 
 async function startApp() {

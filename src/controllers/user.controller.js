@@ -1,4 +1,3 @@
-import { validator } from '../utils/validator';
 import { handleDriverOnlineSv, handleMeSv, handleRegisterSv } from '../services/user.service';
 
 export const handleRegisterCtr = async (req, res, next) => {

@@ -9,6 +9,7 @@ export const initSocketConnection = (server) => {
   const io = new Server(server, {
     path: '/booking-event',
     cors: {},
+    pingTimeout: 30000,
     transports: ["polling", "websocket"]
   });
   GLOBAL_SOCKET_IO = io;

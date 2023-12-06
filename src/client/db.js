@@ -17,6 +17,7 @@ const sequelizeService = {
         username: config.database.dbUser,
         password: config.database.dbPassword,
         database: config.database.dbName,
+        logging: false,
         define: {
           timestamps: true
         },
@@ -35,11 +36,6 @@ const sequelizeService = {
         const model = await import(`../models/${file}`);
         model.default.associate && model.default.associate(connection.models);
       });
-
-      // Only force sync in develop
-      // await connection.sync({ force: true });
-      // if (process.env.NODE_ENV === 'development') {
-      // }
 
       console.log("[SEQUELIZE] Database service initialized");
     } catch (error) {

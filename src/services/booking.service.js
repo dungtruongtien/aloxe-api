@@ -218,19 +218,10 @@ export const createBookingSV = async (bookingInput) => {
 
     // Handle send message to socket channels
     console.log('driverInfo.id----', driverInfo.driver.id);
-    console.log('JSON.stringify(------', JSON.stringify({
-      message: "Bạn có 1 đơn đặt xe",
-      booking: { ...bookingDto, status: "DRIVER_FOUND" },
-      customer: {
-        fullName: customer.user.fullName,
-        phoneNumber: customer.user.phoneNumber,
-        avatar: customer.user.avatar,
-      }
-    }))
     broadcastPrivateMessage(booking.id, "Hello");
     broadcastPrivateMessage(driverInfo.driver.id, JSON.stringify({
       message: "Bạn có 1 đơn đặt xe",
-      booking: { ...bookingDto, status: "DRIVER_FOUND" },
+      booking: { ...bookingDto, id: booking.id, status: "DRIVER_FOUND" },
       customer: {
         fullName: customer.user.fullName,
         phoneNumber: customer.user.phoneNumber,
@@ -255,11 +246,10 @@ export const bookingDriverActionSV = async (driverId, bookingId, actionType, ass
           status: "DRIVER_CONFIRMED"
         },
         {
-          where: { id: bookingId }
+          where: { id: bookingId },
         },
       )
-
-      broadcastPrivateMessage(bookingId, JSON.stringify({ message: "Driver is confirmed and arriving to your pick up location." }));
+      broadcastPrivateMessage(bookingId, JSON.stringify({ status: "DRIVER_CONFIRMED" }));
       return bookingResp;
     case "CANCELLED":
       bookingResp = await Booking.update(
@@ -301,6 +291,39 @@ export const bookingDriverActionSV = async (driverId, bookingId, actionType, ass
         );
         broadcastPrivateMessage(assignedDriverId, JSON.stringify({ message: "Customer cancelled your booking." }));
       }
+      return bookingResp;
+    case "ARRIVED":
+      bookingResp = await Booking.update(
+        {
+          status: "ARRIVED"
+        },
+        {
+          where: { id: bookingId }
+        },
+      );
+      broadcastPrivateMessage(bookingId, JSON.stringify({ status: "ARRIVED" }));
+      return bookingResp;
+    case "PAID":
+      bookingResp = await Booking.update(
+        {
+          status: "PAID"
+        },
+        {
+          where: { id: bookingId }
+        },
+      );
+      broadcastPrivateMessage(bookingId, JSON.stringify({ status: "PAID" }));
+      return bookingResp;
+    case "ONBOARDING":
+      bookingResp = await Booking.update(
+        {
+          status: "ONBOARDING"
+        },
+        {
+          where: { id: bookingId }
+        },
+      );
+      broadcastPrivateMessage(bookingId, JSON.stringify({ status: "ONBOARDING" }));
       return bookingResp;
     default:
       break;
