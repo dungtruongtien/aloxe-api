@@ -328,6 +328,16 @@ export const bookingDriverActionSV = async (driverId, bookingId, actionType, ass
           where: { id: bookingId }
         },
       );
+      if (driverId) {
+        await DriverLogginSession.update(
+          {
+            drivingStatus: "WAITING_FOR_CUSTOMER"
+          },
+          {
+            where: { driverId }
+          },
+        );
+      }
       broadcastPrivateMessage(bookingId, JSON.stringify({ status: "PAID" }));
       return bookingResp;
     case "ONBOARDING":
