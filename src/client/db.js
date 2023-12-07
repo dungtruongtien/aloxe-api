@@ -17,7 +17,7 @@ const sequelizeService = {
         username: config.database.dbUser,
         password: config.database.dbPassword,
         database: config.database.dbName,
-        logging: false,
+        logging: true,
         define: {
           timestamps: true
         },

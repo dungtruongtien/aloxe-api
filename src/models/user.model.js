@@ -60,10 +60,6 @@ class User extends Model {
       as: 'driver'
     });
 
-    this.hasOne(models.Driver, {
-      foreignKey: "ma_nguoi_dung",
-    });
-
     this.hasOne(models.Staff, {
       foreignKey: "ma_nguoi_dung",
       as: "staff"

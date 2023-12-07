@@ -3,8 +3,8 @@ import { bookingDriverActionSV, createBookingSV, detailBookingSV, listBookingSV,
 export const listBookingCtr = async (req, res, next) => {
   try {
     // Handle business logic
-    const { status, staffId, customerId, driverId } = req.query;
-    const bookings = await listBookingSV({ customerId, staffId, driverId, status });
+    const { status, staffId, customerId, driverId, search } = req.query;
+    const bookings = await listBookingSV({ customerId, staffId, driverId, status, search });
     res.status(201).json({
       status: 'SUCCESS',
       data: bookings

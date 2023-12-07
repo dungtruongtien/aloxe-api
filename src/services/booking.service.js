@@ -1,4 +1,5 @@
 import Booking from '../models/booking.model';
+import bcrypt from 'bcryptjs';
 import cron from 'node-cron';
 import Driver from '../models/driver.model';
 import User from '../models/user.model';
@@ -13,9 +14,24 @@ import { NotfoundError } from '../common/customError';
 import { broadcastPrivateMessage } from '../client/socket';
 import { zonedTimeToUtc } from 'date-fns-tz';
 import Auth from '../models/auth.model';
+import { Op } from 'sequelize';
 
-export const listBookingSV = async ({ customerId, staffId, driverId, status }) => {
+export const listBookingSV = async ({ customerId, staffId, driverId, status, search }) => {
   const condition = {};
+  if (search) {
+    condition[Op.or] = [
+      {
+        '$nguoi_dung.so_dien_thoai$': {
+          like: search,
+        }
+      },
+      {
+        '$nguoi_dung.so_dien_thoai$': {
+          like: search,
+        }
+      }
+    ]
+  }
   if (staffId) {
     condition.staffId = staffId;
   }
@@ -325,6 +341,17 @@ export const bookingDriverActionSV = async (driverId, bookingId, actionType, ass
       );
       broadcastPrivateMessage(bookingId, JSON.stringify({ status: "ONBOARDING" }));
       return bookingResp;
+    case "DRIVER_COME":
+      bookingResp = await Booking.update(
+        {
+          status: "DRIVER_COME"
+        },
+        {
+          where: { id: bookingId }
+        },
+      );
+      broadcastPrivateMessage(bookingId, JSON.stringify({ status: "DRIVER_COME" }));
+      return bookingResp;
     default:
       break;
   }
@@ -350,7 +377,7 @@ async function __getUserInfo(customer) {
           level: "NORMAL"
         },
         account: {
-          username,
+          username: "",
           password: hashedPassword
         },
       },
@@ -362,7 +389,7 @@ async function __getUserInfo(customer) {
           },
           {
             model: Auth,
-            as: 'auth'
+            as: 'account'
           }
         ]
       });

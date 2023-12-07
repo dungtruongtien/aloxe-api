@@ -32,7 +32,7 @@ class Auth extends Model {
   static associate(models) {
     this.belongsTo(models.User, {
       foreignKey: "ma_nguoi_dung",
-      as: 'account',
+      as: 'user',
     })
   }
 }
