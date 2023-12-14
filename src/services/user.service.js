@@ -86,19 +86,21 @@ export const handleDriverOnlineSv = async ({ driverId, lat, long, type }) => {
     throw new BusinessError('User not existed', 'UserNotFound');
   }
 
-  const created = await DriverLoginSession.create({
-    driverId: driverData.id,
-    currentLat: lat,
-    currentLong: long,
-    status: "ONLINE",
-    drivingStatus: "WAITING_FOR_CUSTOMER",
-  });
-
-  if (!created) {
-    throw new Error("Cannot switch user to online status");
+  try {
+    const created = await DriverLoginSession.create({
+      driverId: driverData.id,
+      currentLat: lat,
+      currentLong: long,
+      status: "ONLINE",
+      drivingStatus: "WAITING_FOR_CUSTOMER",
+    });
+    if (!created) {
+      throw new Error("Cannot switch user to online status");
+    }
+    broadcastPrivateMessage(driverData.id, "Hello");
+    return created;
+  } catch (err) {
+    return null;
   }
 
-  broadcastPrivateMessage(driverData.id, "Hello");
-
-  return created;
 }

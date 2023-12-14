@@ -225,7 +225,6 @@ export const createBookingSV = async (bookingInput) => {
         }
       ]
     });
-    console.log('customer------', customer.toJSON());
     resp = {
       ...driverInfo,
       booking: { ...bookingDto, id: booking.id, status: "DRIVER_FOUND", driver: driverInfo.driver },
@@ -234,10 +233,13 @@ export const createBookingSV = async (bookingInput) => {
 
     // Handle send message to socket channels
     console.log('driverInfo.id----', driverInfo.driver.id);
+    if (booking.staffId) {
+      broadcastPrivateMessage(booking.staffId, "Hello");
+    }
     broadcastPrivateMessage(booking.id, "Hello");
     broadcastPrivateMessage(driverInfo.driver.id, JSON.stringify({
       message: "Bạn có 1 đơn đặt xe",
-      booking: { ...bookingDto, id: booking.id, status: "DRIVER_FOUND" },
+      booking: { ...bookingDto, id: booking.id, status: "DRIVER_FOUND", minDistance: driverInfo.minDistance },
       customer: {
         fullName: customer.user.fullName,
         phoneNumber: customer.user.phoneNumber,
@@ -284,7 +286,7 @@ export const bookingDriverActionSV = async (driverId, bookingId, actionType, ass
           where: { driverId }
         },
       );
-      broadcastPrivateMessage(bookingId, JSON.stringify({ message: "Driver is cancelled your booking, please retry to book a new car." }));
+      broadcastPrivateMessage(bookingId, JSON.stringify({ status: "CANCELLED", message: "Driver is cancelled your booking, please retry to book a new car." }));
       return bookingResp;
     case "USER_CANCELLED":
       console.log('assignedDriverId---', assignedDriverId);
@@ -305,7 +307,7 @@ export const bookingDriverActionSV = async (driverId, bookingId, actionType, ass
             where: { driverId: assignedDriverId }
           },
         );
-        broadcastPrivateMessage(assignedDriverId, JSON.stringify({ message: "Customer cancelled your booking." }));
+        broadcastPrivateMessage(assignedDriverId, JSON.stringify({ status: "USER_CANCELLED", message: "Customer cancelled your booking." }));
       }
       return bookingResp;
     case "ARRIVED":
@@ -570,14 +572,57 @@ const __handleAssignDriverForBooking = async (booking) => {
 }
 
 function bookingScheduler() {
-  cron.schedule('* * * * *', async () => {
+  cron.schedule('*/10 * * * * *', async () => {
     console.log('running a task every minute');
-    const bookingsBooked = await Booking.findAll({ where: { status: "BOOKED" } });
+    const bookingsBooked = await Booking.findAll({
+      where: { status: "BOOKED" },
+      include: [
+        {
+          model: BookingDetail,
+          as: "bookingDetail",
+        }
+      ]
+    });
     if (bookingsBooked && bookingsBooked.length > 0) {
-      bookingsBooked.forEach(booking => {
-        __handleAssignDriverForBooking(booking);
-      });
+      try {
+        bookingsBooked.forEach(async (bookingData) => {
+          console.log('bookingData.id---', bookingData.id);
+          const nowInVN = zonedTimeToUtc(new Date(), "Asia/Ho_Chi_Minh");
+          const startTimeInVN = zonedTimeToUtc(new Date(bookingData.startTime), "Asia/Ho_Chi_Minh");
+          if (startTimeInVN.getTime() <= nowInVN.getTime()) {
+
+            const driverInfo = await __handleAssignDriverForBooking(bookingData);
+            const customerData = await Customer.findOne({
+              where: { id: bookingData.customerId },
+              include: [
+                {
+                  model: User,
+                  as: 'user',
+                }
+              ]
+            });
+            // Handle send message to socket channels
+            console.log('driverInfo.id----', driverInfo.driver.id);
+            broadcastPrivateMessage(bookingData.id, "Hello");
+            if (bookingData.staffId) {
+              broadcastPrivateMessage(bookingData.staffId, "Hello");
+            }
+            broadcastPrivateMessage(driverInfo.driver.id, JSON.stringify({
+              message: "Bạn có 1 đơn đặt xe",
+              booking: { ...bookingData.toJSON(), status: "DRIVER_FOUND" },
+              customer: {
+                fullName: customerData.user.fullName,
+                phoneNumber: customerData.user.phoneNumber,
+                avatar: customerData.user.avatar,
+              }
+            }));
+            console.log('After broadcasting-------');
+          }
+        });
+      } catch (err) {
+        return null;
+      }
     }
   });
 }
-// bookingScheduler();
+bookingScheduler();

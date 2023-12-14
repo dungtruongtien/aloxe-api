@@ -15,12 +15,14 @@ export const initSocketConnection = (server) => {
   GLOBAL_SOCKET_IO = io;
   GLOBAL_SOCKET = io;
 
-  GLOBAL_SOCKET_IO.on('connection', (socket) => {
-    GLOBAL_SOCKET = socket;
+  io.on('connection', (socket) => {
+    // if (!GLOBAL_SOCKET) {
+      // GLOBAL_SOCKET = socket;
+    // }
   });
 
-  GLOBAL_SOCKET_IO.on('disconnect', (socket) => {
-    GLOBAL_SOCKET = socket;
+  io.on('disconnect', (socket) => {
+    console.log('Socket disconnect', socket.id);
   });
 }
 
